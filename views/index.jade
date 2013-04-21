@@ -2,7 +2,9 @@ extends layout
 
 block content
   h1= title
-  p Here you can search NASA's SkyMorph databases for some cool images of your favorite celestial bodies!
+  p Here you can search NASA's 
+    a(href='http://skyview.gsfc.nasa.gov/skymorph/') SkyMorph
+    |  databases for some cool images of your favorite celestial bodies.
   #observations-search
     form#simple-search.tab
       fieldset
@@ -23,37 +25,15 @@ block content
           a(href)#simple-link Simple
           |  Advanced
         dl
-        dt Epoch
-        dd
-          input#epoch
-          [M]JD or ISO
-        dt Eccentricity
-        dd
-          input#eccentricity
-        dt Perihelion Distance
-        dd
-          input#per_distance
-          | AU
-        dt Perihelion Date
-        dd
-          input#per_date
-          | [M]JD or ISO
-        dt Long. Asc. Node
-        dd
-          input#long_asc_node
-          | Degrees
-        dt Arg. of Perihelion
-        dd
-          input#arg_of_per
-          | Degrees
-        dt Inclination
-        dd
-          input#inclination
-          | Degrees
-        dt H magnitude
-        dd
-          input#h_magnitude
-
+          for param in orbital_params
+            dt= param.name
+            dd
+              input(id=param.id)
+              | #{param.unit}
         center
           input(type='submit', value='Reach for the stars')
 
+    #error
+    #observations
+
+  script(src='/javascripts/main.js')

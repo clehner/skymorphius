@@ -2,11 +2,14 @@ var request = require('request');
 var fs = require('fs');
 
 var imageSize = 500;
+var headers = '|Observation|Time|ObjRA|ObjDec|Plt RA|Plt Dec|Magnitude|V_RA|V_Dec|E_Maj|E_Min|E_PosAng|';
+var headersNEAT = headers + 'x|y|';
 
 var obsRegex = /<tr>\s*(?:<td.*?Check_[^ ]* value='([^']*)'>\s*)?([\s\S]*?)<\/tr>/g;
 var obsRegexInner = /([^<>]+)(?=<\/td)/g;
 var nbspRegex = /&nbsp;/g;
 var badDateRegex = /([0-9]*):60$/;
+var imagesRegex = /<img src='?(?:http:\/\/[^\/]*)?(.*?\/tempspace\/images.*?)'?[ >]/;
 
 // convert a DMS string into a decimal number
 function dms_decimal(dms) {
@@ -18,35 +21,51 @@ function dms_decimal(dms) {
   return sign * (d*sign + m/60 + s/3600);
 }
 
-function getImageInfo(key) {
-  var params = {
-    'Headers_NEAT': '|Observation|Time|ObjRA|ObjDec|Plt RA|Plt Dec|Magnitude|V_RA|V_Dec|E_Maj|E_Min|E_PosAng|x|y|',
-    'Check_NEAT': key,
-    'Npixel': imageSize,
-    'Singlets': 'on',
-    'Scaling': 'Log',
-    'Extremum': 'Dft',
-    'OverSize': 300,
-    'OverScale': 0.5
+function cloneObject(obj) {
+  var copy = {};
+  for (var k in obj) {
+    copy[k] = obj[k];
+  }
+  return copy;
+}
+
+function getImageInfo(service, imageIds, cb) {
+  var query = {
+    Headers_NEAT: headersNEAT,
+    Headers_DSS: headers,
+    Headers_DSS2: headers,
+    Headers_HST: headers,
+    Headers_USNO: headers,
+    Npixel: imageSize,
+    NpixelD2: imageSize,
+    Singlets: 'on',
+    Scaling: 'Log',
+    Extremum: 'Dft',
+    OverSize: 300,
+    OverScale: 0.5
   };
+  query['Check_'+service] = imageIds;
+
+  req.post({
+    uri: "http://skyview.gsfc.nasa.gov/cgi-bin/skymorph/mobsdisp.pl",
+    qs: query
+  }, function (err, resp, body) {
+    if (err) {
+      cb({error: err});
+      return;
+    }
+    var match;
+    while (match = imagesRegex.exec(body)) {
+      var path = match[1];
+      console.log(path);
+    }
+  });
 }
 
 function getObservations(target, params, service, cb) {
   if (!service) {
     cb({error: 'service is required'});
     return;
-  }
-
-  // cache for development
-  var req = request;
-  if (target == 'Ceres') req = function (_, cb) {
-    cb(null, null, fs.readFileSync('/tmp/SkyMorph Moving Object Detection  Ceres.html'));
-  }
-  if (target == 'Hale-Bopp') req = function (_, cb) {
-    cb(null, null, fs.readFileSync('/tmp/Hale-Bopp.html'));
-  }
-  if (target == 'Pluto') req = function (_, cb) {
-    cb(null, null, fs.readFileSync('/tmp/Pluto.html'));
   }
 
   // build the query
@@ -70,7 +89,7 @@ function getObservations(target, params, service, cb) {
   }
   query[service] = 'on';
 
-  req({
+  request({
     uri: 'http://skyview.gsfc.nasa.gov/cgi-bin/skymorph/mobssel.pl',
     qs: query
   }, function (err, resp, body) {
@@ -106,13 +125,13 @@ function getObservations(target, params, service, cb) {
         continue;
       }
 
+      var obsId = fields[0];
       var positionalError = fields.slice(10, 13).map(Number);
 
       var observation = {
-        _id: imageId,
         service: service,
-        image: imageId ? "/images/" + imageId + ".jpg" : undefined,
-        id: fields[0],
+        image: imageId ? "/observations/" + obsId + "/image" : undefined,
+        _id: obsId,
         has_triplet: hasTriplet,
         time: fields[1],
         predicted_position: [dms_decimal(fields[2]), dms_decimal(fields[3])],
@@ -127,15 +146,56 @@ function getObservations(target, params, service, cb) {
     }
 
     cb({error: null, observations: observations});
+
+    // save this data to couch
+    var docs = observations.map(function (obs) {
+      var obj = cloneObject(obj);
+      delete obj.image;
+      return obj;
+    });
+    request.put({
+      url: couch,
+      json: {docs: docs}
+    }, function (err, resp, body) {
+      if (err) {
+        console.error("Couch error: "+err);
+        return;
+      }
+      body.docs.forEach(function (docResp, i) {
+        var id = docResp.id;
+        if (docResp.error == 'conflict') {
+          // this is probably ok
+          console.;
+
+    // get image data in the background
+    var ids = observations.map(function (obs) { return obs._id; });
+    getImageInfo(service, ids);
   });
 }
 
 /*
- * GET Observations of SkyMorph moving targets
+ * GET observations of SkyMorph moving targets
+ * by target or orbital elements
  */
-exports.by_target = function (req, res) {
+exports.index = function (req, res) {
   getObservations(req.query.target, req.query, req.query.service, function (result) {
     res.jsonp(result);
   });
 };
+
+/*
+ * GET an observation datum
+ */
+exports.by_id = function (req, res) {
+  var id = req.params.id;
+    gtgtjkjk
+}
+
+/*
+ * GET observation data or image
+ */
+exports.image_by_id = function (req, res) {
+  var id = req.params.id;
+    gtgtjkjk
+}
 

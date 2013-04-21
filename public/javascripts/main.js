@@ -11,22 +11,29 @@ function parseQuery(str) {
 function makeQuery(obj) {
   var keyvals = [];
   for (var key in obj)
-    keyvals.push(key + '=' + obj[key]);
+    keyvals.push(key + '=' + encodeURIComponent(obj[key]));
   return keyvals.join('&');
 }
 
-function searchByTarget(target) {
-  console.log('target: '+target);
+function ajax(url, cb) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState == 4) {
+      cb(xhr);
+      xhr = null;
+    }
+  };
+  xhr.send(null);
 }
 
-function searchByOrbitals(params) {
-  console.log('params:', params);
-}
-
+// DOM references
 function $(id) { return document.getElementById(id); }
 var searchContainer = $("observations-search");
 var advancedSearchForm = $("advanced-search");
 var simpleSearchForm = $("simple-search");
+var errorEl = $("error");
+var observationsEl = $("observations");
 var inputs = {
   target: $("target"),
   epoch: $("epoch"),
@@ -39,6 +46,42 @@ var inputs = {
   h_magnitude: $("h_magnitude")
 };
 
+// Rendering observations (search results)
+
+function renderObservation(observation) {
+  var obsEl = document.createElement("li");
+  obsEl.textContent = JSON.stringify(observation);
+  observationsEl.appendChild(obsEl);
+}
+
+function renderObservations(observations) {
+  observationsEl.innerHTML = "";
+  observations.forEach(renderObservation);
+}
+
+function showError(error) {
+  errorEl.textContent = error;
+}
+
+// Searches
+
+function searchObservations(params) {
+  params.service = 'NEAT';
+  ajax('./observations?' + makeQuery(params), function (xhr) {
+    var resp, error;
+    try {
+      resp = JSON.parse(xhr.responseText);
+      error = resp.error;
+    } catch(e) {
+      error = 'JSON error';
+    }
+    if (error) showError(error);
+    else renderObservations(resp.observations);
+  });
+}
+
+// Setup
+
 // sync up hash change with search fields
 var hashArgs = {};
 function onHashChange() {
@@ -46,6 +89,8 @@ function onHashChange() {
   for (var el in hashArgs)
     if (inputs.hasOwnProperty(el))
       inputs[el].value = hashArgs[el];
+  if (hashArgs.epoch) onAdvancedSubmit();
+  else if (hashArgs.target) onSimpleSubmit();
 }
 // write the hash object to the location
 function updateHash() {
@@ -56,7 +101,7 @@ window.addEventListener("hashchange", onHashChange, false);
 function onSimpleSubmit(e) {
   if (e) e.preventDefault();
   var target = inputs.target.value;
-  if (target) searchByTarget(target);
+  if (target) searchObservations({target: target});
   hashArgs.target = target;
   updateHash();
 }
@@ -71,14 +116,14 @@ function onAdvancedSubmit(e) {
     if (value) values[el] = value;
   }
   updateHash();
-  searchByOrbitals(values);
+  searchObservations(values);
 }
 advancedSearchForm.addEventListener("submit", onAdvancedSubmit, false);
 
 // load initial search
 onHashChange();
-if (hashArgs.target) onSimpleSubmit();
-else if (hashArgs.epoch) onAdvancedSubmit();
+
+// tab movement
 
 var tabContainer = searchContainer;
 function setActiveTab(tabName) {
@@ -91,6 +136,7 @@ function setActiveTab(tabName) {
 // recover last active tab
 if (sessionStorage) setActiveTab(sessionStorage.skyMorphiusTab);
 
+// tab links
 ["simple", "advanced"].map(function (tabName) {
   $(tabName+"-link").addEventListener("click", function (e) {
     e.preventDefault();

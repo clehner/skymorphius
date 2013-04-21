@@ -28,7 +28,9 @@ if ('development' == app.get('env')) {
 }
 
 app.get('/', routes.index);
-app.get('/observations', observation.by_target);
+app.get('/observations', observation.index);
+app.get('/observations/:id', observation.by_id);
+app.get('/observations/:id/image', observation.image_by_id);
 
 http.createServer(app).listen(app.get('port'), function(){
   console.log('Express server listening on port ' + app.get('port'));
