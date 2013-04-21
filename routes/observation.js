@@ -108,7 +108,7 @@ function saveImage(docId, rev, imageURL, cb) {
       console.error('Error saving image', error||body.error, docId, rev, imageURL);
       return;
     } else {
-      console.log('Saved image');
+      console.log('Saved image', docId, imageURL);
       cb(true);
     }
   }));
