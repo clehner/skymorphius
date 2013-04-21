@@ -60,7 +60,7 @@ function renderObservations(observations) {
 }
 
 function showError(error) {
-  errorEl.textContent = error;
+  errorEl.textContent = JSON.stringify(error);
 }
 
 // Searches

@@ -59,7 +59,7 @@ Response:
         [19, 40, 57.4], // right ascension
         [-20, 9, 50] // declination
       ],
-      "magnitude": 10.7,
+      "h_magnitude": 10.7,
       "velocity": [11.93, 10.46], // W-E, S-N (degrees per hour)
       "offset": 6.26, // minutes
       "positional_error": [0.09, 0.06, 15.67], // major, minor, position angle
