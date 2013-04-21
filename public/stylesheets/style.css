@@ -44,3 +44,10 @@ a {
   margin-top: 1em;
 }
 
+#loader {
+  display: none;
+}
+.loading #loader {
+  display: inline-block;
+}
+

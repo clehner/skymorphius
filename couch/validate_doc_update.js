@@ -9,13 +9,11 @@ function (doc, oldDoc, userCtx) {
     return;
   }
 
-  if (doc.type == 'observation' || doc.type == 'no_observations') {
+  if (doc.type == 'observation') {
+    // doc.observation can be an observation object or null meaning no
+    // observations for these params/target
     if (!doc.params && !doc.target)
       throw {unauthorized: 'missing orbital params or target name'};
-
-    if (doc.type == 'observation') {
-      if (!doc.observation) throw {unauthorized: 'missing observation object'};
-    }
   } else {
     throw {forbidden: 'Invalid doc type'};
   }

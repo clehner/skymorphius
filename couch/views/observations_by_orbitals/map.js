@@ -1,5 +1,5 @@
 function(doc) {
-  if (doc.type == 'observation') 
+  if (doc.type == 'observation') {
     // key by orbital parameters
     var params = doc.params;
     var key = [
@@ -8,4 +8,5 @@ function(doc) {
       params.h_magnitude, params.service
     ];
     emit(key, doc.observation);
+  }
 }

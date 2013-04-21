@@ -3,6 +3,11 @@ SkyMorphius
 
 A nice API for [SkyMorph](http://skyview.gsfc.nasa.gov/skymorph/).
 
+Made for the
+[International](http://spaceappschallenge.org/)
+[SpaceApps](http://spaceappschallenge.org/project/skymorphius/)
+[Challenge](http://spaceappschallenge.org/challenge/skymorph-imagery-api/).
+
 API
 ---
 

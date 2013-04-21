@@ -1,5 +1,5 @@
 function(doc) {
   if (doc.type == 'observation') 
     // key by orbital parameters
-    emit(doc.target, doc.observation);
+    emit(doc.target.toLowerCase(), doc.observation);
 }

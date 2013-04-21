@@ -1,9 +1,11 @@
 // Utilities
 function parseQuery(str) {
   var obj = {};
-  str.split('&').forEach(function (pair) {
+  if (str) str.split('&').forEach(function (pair) {
     var keyval = pair.split('=', 2);
-    obj[keyval[0]] = keyval[1];
+    var key = keyval[0];
+    var val = keyval[1];
+    obj[key] = val;
   });
   return obj;
 }
@@ -11,7 +13,8 @@ function parseQuery(str) {
 function makeQuery(obj) {
   var keyvals = [];
   for (var key in obj)
-    keyvals.push(key + '=' + encodeURIComponent(obj[key]));
+    keyvals.push(key + '=' + obj[key]);
+    //keyvals.push(key + '=' + encodeURIComponent(obj[key]));
   return keyvals.join('&');
 }
 

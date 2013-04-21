@@ -4,6 +4,10 @@ var fs = require('fs');
 var couchConfig = require('./couchconfig');
 var couchURL = couchConfig.url;
 
+var skyViewURL = 'http://skyview.gsfc.nasa.gov';
+var skyMorphImagesURL = skyViewURL + '/cgi-bin/skymorph/mobsdisp.pl';
+var skyMorphObservationsURL = skyViewURL + '/cgi-bin/skymorph/mobssel.pl';
+
 var imageSize = 500;
 var headers = '|Observation|Time|ObjRA|ObjDec|Plt RA|Plt Dec|Magnitude|V_RA|V_Dec|E_Maj|E_Min|E_PosAng|';
 var headersNEAT = headers + 'x|y|';
@@ -13,6 +17,7 @@ var obsRegexInner = /([^<>]+)(?=<\/td)/g;
 var nbspRegex = /&nbsp;/g;
 var imagesRegex = /<img src='?(?:http:\/\/[^\/]*)?(.*?\/tempspace\/images.*?)'?[ >]/;
 var badDateRegex = /([0-9]*):60$/;
+
 function badDateReplace(m) { return (+m[1]+1) + ':00'; }
 
 // convert a DMS string into a decimal number
@@ -33,15 +38,68 @@ function cloneObject(obj) {
   return copy;
 }
 
+// convert an object into a queury object usable for CouchDB requests
+function JSONQuery(obj) {
+  var q = {};
+  for (var k in obj)
+    q[k] = JSON.stringify(obj[k]);
+  return q;
+}
+
 // Get an image from SkyMorph and save it CouchDB
 // Background request
-function fetchImage(id, rev, imageId) {
-  console.log('todo');
+function fetchImage(service, docId, rev, imageId) {
+  getImageInfo(service, [imageId], function (result) {
+    if (result.error) {
+      console.error('Error fetching image', result.error, service, docId,
+        rev, imageId);
+      return;
+    }
+    var imageURL = result.urls[0];
+    if (!imageURL) {
+      console.error('Failed to fetch image URL for',
+        service, docId, rev, imageId);
+    } else {
+      saveImage(docId, rev, imageURL);
+    }
+  });
+}
+
+// Download an image url and save it as an attachment to the observation doc
+function saveImage(docId, rev, imageURL) {
+  request.get(imageURL).pipe(request.post({
+    url: couchURL + '/' + encodeURIComponent(docId) + '/picture',
+    qs: {rev: rev},
+    json: true
+  }, function (error, resp, body) {
+    if (body.error == 'conflict') {
+      console.log('Conflict', docId, rev, imageId);
+      // get the new rev
+      getDocRev(docId, function (newRev) {
+        if (rev) {
+          saveImage(docId, newRev, imageURL);
+        } else {
+          console.error('Unable to get rev for', docId);
+        }
+      });
+    } else if (error || body.error) {
+      console.error('Error saving image', result.error, docId, rev, imageId);
+      return;
+    } else {
+      console.log('Saved image');
+    }
+  }));
 }
 
 // get a document revision from couch
 function getDocRev(docId, cb) {
-  console.log('todo');
+  request.head(couchURL + '/' + encodeURIComponent(docId),
+    function (err, resp) {
+      var etag = resp.headers.etag;
+      // the etag should be the rev
+      cb(etag);
+    }
+  );
 }
 
 // get image info from SkyMorph
@@ -62,19 +120,25 @@ function getImageInfo(service, imageIds, cb) {
   };
   query['Check_'+service] = imageIds;
 
-  req.post({
-    uri: "http://skyview.gsfc.nasa.gov/cgi-bin/skymorph/mobsdisp.pl",
+  request.post({
+    uri: skyMorphImagesURL,
     qs: query
   }, function (err, resp, body) {
+    console.log(resp, body, err);
+    body = body.toString('ascii');
+    fs.writeFile('image_info_text.html', body, function(){});
     if (err) {
-      cb({error: err});
+      cb({error: err, urls: []});
       return;
     }
-    var match;
+    var urls = [], match;
     while ((match = imagesRegex.exec(body))) {
       var path = match[1];
-      console.log(path);
+      var url = skyViewURL + path;
+      console.log('got url', url);
+      urls.push(url);
     }
+    cb({error: false, urls: urls});
   });
 }
 
@@ -98,29 +162,32 @@ function getObservationsCouch(target, params, service, cb) {
       endkey: key.concat({})
     };
   }
+  query.reduce = false;
   request({
     uri: couchURL + '/_design/skymorphius/_view/' + view,
-    qs: query,
+    qs: JSONQuery(query),
     json: true
   }, function (err, resp, body) {
+    //console.log('got couch observations', body);
     if (err || body.error) {
       return cb({
-        error: err || body.error,
+        error: err || body,
         found: false,
         observations: []
       });
     }
 
-    var observations = body.rows.map(function (row) {
+    var rows = body.rows;
+    var observations = rows.map(function (row) {
       return row.value;
     });
 
     // falsy first observation value indicates no observations for these params
-    var none = (body.total_rows == 1) && !observations[0];
+    var none = rows.length && !observations.some(Boolean);
 
     cb({
       error: null,
-      found: body.total_rows > 0 && !none,
+      found: rows.length > 0 && !none,
       observations: observations
     });
   });
@@ -132,6 +199,8 @@ function getObservationsNASA(target, params, service, cb) {
     cb({error: 'service is required'});
     return;
   }
+
+  console.log('Getting SkyMorph observations');
 
   // build the query
   var query;
@@ -155,7 +224,7 @@ function getObservationsNASA(target, params, service, cb) {
   query[service] = 'on';
 
   request({
-    uri: 'http://skyview.gsfc.nasa.gov/cgi-bin/skymorph/mobssel.pl',
+    uri: skyMorphObservationsURL,
     qs: query
   }, function (err, resp, body) {
     if (err) {
@@ -197,7 +266,7 @@ function getObservationsNASA(target, params, service, cb) {
         service: service,
         image: imageId ? "/observations/" + obsId + "/image" : undefined,
         imageId: imageId,
-        _id: obsId,
+        id: obsId,
         has_triplet: hasTriplet,
         time: fields[1],
         predicted_position: [dms_decimal(fields[2]), dms_decimal(fields[3])],
@@ -217,30 +286,51 @@ function getObservationsNASA(target, params, service, cb) {
 
     // save this data to couch
     var docs = observations.map(function (obs) {
-      var obs2 = cloneObject(obj);
+      var obs2 = cloneObject(obs);
       obs2.type = 'observation';
       if (target) obs2.names = [target];
+      // background tasks will get post the image to the doc later
       delete obs2.image;
+      delete obs2.imageId;
       var doc = {
+        _id: obs.id,
+        type: 'observation',
         observation: obs2
       };
       if (target) doc.target = target;
       else doc.params = params;
       return doc;
     });
+    if (!observations.length) {
+      // mark that there are no observations for these parameters
+      // _id will be randomly generated
+      var doc = {
+        type: 'observation',
+        observation: null
+      };
+      if (target) doc.target = target;
+      else doc.params = params;
+      docs = [doc];
+    }
 
-    request.put({
-      url: couchURL,
+    request.post({
+      url: couchURL + '/_bulk_docs',
       json: {docs: docs}
-    }, function (err, resp, body) {
+    }, function (err, resp, results) {
       if (err) {
-        console.error("Couch error: "+err);
+        console.error("Couch error:", err || body);
         return;
       }
       // get the status of each document save
-      body.docs.forEach(function (docResp, i) {
+      results.forEach(function (docResp, i) {
         var id = docResp.id;
-        var imageId = observations[i].imageId;
+        var obs = observations[i];
+        if (!obs) {
+          console.log('Unable to find observation for doc',
+            {observations: observations, results: results});
+          return;
+        }
+        var imageId = obs.imageId;
         if (docResp.error == 'conflict') {
           // this probably means the data is already in the db
           console.warn('Couch save conflict', id, docResp.reason);
@@ -251,14 +341,14 @@ function getObservationsNASA(target, params, service, cb) {
               if (!rev) {
                 console.error('Unable to get document rev!');
               } else {
-                fetchImage(id, rev, imageId);
+                fetchImage(service, id, rev, imageId);
               }
             });
           }
         } else {
           // retrieve images in the background
           if (imageId) {
-            fetchImage(id, docResp.rev, imageId);
+            fetchImage(service, id, docResp.rev, imageId);
           }
         }
       });
