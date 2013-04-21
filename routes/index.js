@@ -6,7 +6,7 @@
 exports.index = function (req, res) {
   res.render('index', {
     title: 'SkyMorphius',
-    sample_targets: ['Hale-Bopp', 'Ceres', 'Pluto'],
+    sample_targets: ['Hale-Bopp', 'Ceres', 'Pluto', 'Apophis'],
     orbital_params: [
       {
         name: 'Epoch',

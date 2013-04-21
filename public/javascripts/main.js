@@ -3,8 +3,8 @@ function parseQuery(str) {
   var obj = {};
   if (str) str.split('&').forEach(function (pair) {
     var keyval = pair.split('=', 2);
-    var key = keyval[0];
-    var val = keyval[1];
+    var key = decodeURIComponent(keyval[0]);
+    var val = decodeURIComponent(keyval[1]);
     obj[key] = val;
   });
   return obj;
@@ -13,8 +13,7 @@ function parseQuery(str) {
 function makeQuery(obj) {
   var keyvals = [];
   for (var key in obj)
-    keyvals.push(key + '=' + obj[key]);
-    //keyvals.push(key + '=' + encodeURIComponent(obj[key]));
+    keyvals.push(key + '=' + encodeURIComponent(obj[key]));
   return keyvals.join('&');
 }
 
@@ -52,8 +51,18 @@ var inputs = {
 // Rendering observations (search results)
 
 function renderObservation(observation) {
+  if (!observation.image) {
+    // only show rows with images
+    return;
+  }
   var obsEl = document.createElement("li");
-  obsEl.textContent = JSON.stringify(observation);
+
+  var img = new Image();
+  img.setAttribute("src", observation.image);
+  img.alt = observation.time;
+  obsEl.appendChild(img);
+
+  //obsEl.textContent = JSON.stringify(observation);
   observationsEl.appendChild(obsEl);
 }
 
@@ -69,6 +78,8 @@ function showError(error) {
 // Searches
 
 function searchObservations(params) {
+  // show loader
+  searchContainer.className = "loading";
   params.service = 'NEAT';
   ajax('./observations?' + makeQuery(params), function (xhr) {
     var resp, error;
@@ -80,6 +91,8 @@ function searchObservations(params) {
     }
     if (error) showError(error);
     else renderObservations(resp.observations);
+    // hide loader
+    searchContainer.className = "";
   });
 }
 

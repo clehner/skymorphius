@@ -15,10 +15,23 @@ var headersNEAT = headers + 'x|y|';
 var obsRegex = /<tr>\s*(?:<td.*?Check_[^ ]* value='([^']*)'>\s*)?([\s\S]*?)<\/tr>/g;
 var obsRegexInner = /([^<>]+)(?=<\/td)/g;
 var nbspRegex = /&nbsp;/g;
-var imagesRegex = /<img src='?(?:http:\/\/[^\/]*)?(.*?\/tempspace\/images.*?)'?[ >]/;
+var imagesRegex = /<img src='?(?:http:\/\/[^\/]*)?(.*?\/tempspace\/images.*?)'?[ >]/g;
 var badDateRegex = /([0-9]*):60$/;
 
 function badDateReplace(m) { return (+m[1]+1) + ':00'; }
+
+// by doc id
+var imagesPending = {};
+
+function onImageLoad(id, cb) {
+  if (imagesPending[id]) {
+    // respond when the image has loaded (or not)
+    imagesPending[id].push(cb);
+  } else {
+    cb();
+  }
+}
+
 
 // convert a DMS string into a decimal number
 function dms_decimal(dms) {
@@ -49,7 +62,9 @@ function JSONQuery(obj) {
 // Get an image from SkyMorph and save it CouchDB
 // Background request
 function fetchImage(service, docId, rev, imageId) {
-  getImageInfo(service, [imageId], function (result) {
+  imagesPending[docId] = [];
+  console.log('Fetching image', imageId, 'for', docId);
+  getImageInfo(service, imageId, function (result) {
     if (result.error) {
       console.error('Error fetching image', result.error, service, docId,
         rev, imageId);
@@ -60,15 +75,21 @@ function fetchImage(service, docId, rev, imageId) {
       console.error('Failed to fetch image URL for',
         service, docId, rev, imageId);
     } else {
-      saveImage(docId, rev, imageURL);
+      saveImage(docId, rev, imageURL, function (success) {
+        var cbs = imagesPending[docId];
+        delete imagesPending[docId];
+        cbs.forEach(function (cb) {
+          cb(success);
+        });
+      });
     }
   });
 }
 
 // Download an image url and save it as an attachment to the observation doc
-function saveImage(docId, rev, imageURL) {
-  request.get(imageURL).pipe(request.post({
-    url: couchURL + '/' + encodeURIComponent(docId) + '/picture',
+function saveImage(docId, rev, imageURL, cb) {
+  request.get(imageURL).pipe(request.put({
+    url: couchURL + '/' + encodeURIComponent(docId) + '/image',
     qs: {rev: rev},
     json: true
   }, function (error, resp, body) {
@@ -77,16 +98,18 @@ function saveImage(docId, rev, imageURL) {
       // get the new rev
       getDocRev(docId, function (newRev) {
         if (rev) {
-          saveImage(docId, newRev, imageURL);
+          saveImage(docId, newRev, imageURL, cb);
         } else {
           console.error('Unable to get rev for', docId);
+          cb(false);
         }
       });
     } else if (error || body.error) {
-      console.error('Error saving image', result.error, docId, rev, imageId);
+      console.error('Error saving image', error||body.error, docId, rev, imageURL);
       return;
     } else {
       console.log('Saved image');
+      cb(true);
     }
   }));
 }
@@ -103,7 +126,7 @@ function getDocRev(docId, cb) {
 }
 
 // get image info from SkyMorph
-function getImageInfo(service, imageIds, cb) {
+function getImageInfo(service, imageId, cb) {
   var query = {
     Headers_NEAT: headersNEAT,
     Headers_DSS: headers,
@@ -118,7 +141,8 @@ function getImageInfo(service, imageIds, cb) {
     OverSize: 300,
     OverScale: 0.5
   };
-  query['Check_'+service] = imageIds;
+  // todo: figue out how to have multiple image ids each with the same key
+  query['Check_'+service] = imageId;
 
   request.post({
     uri: skyMorphImagesURL,
@@ -126,7 +150,6 @@ function getImageInfo(service, imageIds, cb) {
   }, function (err, resp, body) {
     console.log(resp, body, err);
     body = body.toString('ascii');
-    fs.writeFile('image_info_text.html', body, function(){});
     if (err) {
       cb({error: err, urls: []});
       return;
@@ -179,7 +202,11 @@ function getObservationsCouch(target, params, service, cb) {
 
     var rows = body.rows;
     var observations = rows.map(function (row) {
-      return row.value;
+      var obj = row.value;
+      if (obj) {
+        obj.image = '/observations/' + row.id + '/image';
+      }
+      return obj;
     });
 
     // falsy first observation value indicates no observations for these params
@@ -326,7 +353,7 @@ function getObservationsNASA(target, params, service, cb) {
         var id = docResp.id;
         var obs = observations[i];
         if (!obs) {
-          console.log('Unable to find observation for doc',
+          console.log('Unable to find observation for doc', id, target||params,
             {observations: observations, results: results});
           return;
         }
@@ -389,12 +416,17 @@ exports.index = function (req, res) {
  */
 exports.by_id = function (req, res) {
   var id = req.params.id;
+  // proxy to doc in couch
+  request.get(couchURL + '/' + encodeURIComponent(id)).pipe(res);
 };
 
 /*
  * GET observation data or image
  */
-exports.image_by_id = function (req, res) {
+exports.image_by_id = function fn(req, res) {
   var id = req.params.id;
+  onImageLoad(id, function () {
+    request.get(couchURL + '/' + encodeURIComponent(id) + '/image').pipe(res);
+  });
 };
 

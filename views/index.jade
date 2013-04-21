@@ -18,6 +18,7 @@ block content
           | or something
         input#target(type='text')
         input(type='submit', value='Get em')
+        img#loader(src='images/loading.gif')
 
     form#advanced-search.tab
       fieldset
@@ -30,8 +31,8 @@ block content
             dd
               input(id=param.id)
               | #{param.unit}
-        center
-          input(type='submit', value='Reach for the stars')
+        input(type='submit', value='Reach for the stars')
+        img#loader(src='images/loading.gif')
 
     #error
     #observations

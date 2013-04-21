@@ -1,5 +1,5 @@
 body {
-  padding: 50px;
+  padding: 25px 50px;
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
 }
 
@@ -46,6 +46,8 @@ a {
 
 #loader {
   display: none;
+  vertical-align: middle;
+  padding-left: 1ex;
 }
 .loading #loader {
   display: inline-block;
