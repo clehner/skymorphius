@@ -87,12 +87,11 @@ function getObservationsCouch(target, params, service, cb) {
     };
   } else {
     view = 'observations_by_orbitals';
-    // it's not very couchdby, but it works for exact matching of parameters
+    // it's not very relaxed, but it works for exact matching of parameters
     var key = [
-      params.service, params.time,
-      params.predicted_position, params.observation_center,
-      params.h_magnitude, params.velocity, params.offset,
-      params.positional_error, params.pixel_location
+      params.epoch, params.eccentricity, params.per_dist, params.per_date,
+      params.long_asc_node, params.arg_of_per, params.inclination,
+      params.h_magnitude, params.service
     ];
     query = {
       startkey: key,
@@ -218,12 +217,18 @@ function getObservationsNASA(target, params, service, cb) {
 
     // save this data to couch
     var docs = observations.map(function (obs) {
-      var obj = cloneObject(obj);
-      obj.type = 'observation';
-      if (target) obj.names = [target];
-      delete obj.image;
-      return obj;
+      var obs2 = cloneObject(obj);
+      obs2.type = 'observation';
+      if (target) obs2.names = [target];
+      delete obs2.image;
+      var doc = {
+        observation: obs2
+      };
+      if (target) doc.target = target;
+      else doc.params = params;
+      return doc;
     });
+
     request.put({
       url: couchURL,
       json: {docs: docs}
