@@ -75,3 +75,30 @@ Response:
 }
 ```
 
+
+## Installation
+
+Requirements:
+
+- Node.js
+- CouchDB
+
+Copy `routes/couchconfig.example.json` to `routes/couchconfig.json` and edit it
+with the address for your CouchDB database.
+
+In CouchDB's Futon, create a database for skymorphius.
+
+Deploy the database design document using the `erica` couchapp tool:
+
+```bash
+cd couch
+erice push . https://example.org:6984/db_name
+```
+
+Install and start the web server.
+
+```bash
+npm install
+npm start
+```
+
