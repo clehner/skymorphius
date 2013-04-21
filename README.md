@@ -6,12 +6,41 @@ A nice API for [SkyMorph](http://skyview.gsfc.nasa.gov/skymorph/).
 API
 ---
 
-* `/observations/[target]`
+* `/observations`
 
-Search NEAT for observations of a particular target.
+### Search for observations by target name
 
-Annotated example:
-Request: `GET /observations/Hale-Bopp`
+Parameters:
+
+* **target**: name of object to search for
+* **service**: which archive to search
+
+#### Services
+
+* **NEAT**: 1996-2006. *has triplet images*
+* **Spacewatch**: 2003-2008. *has images*
+* **DSS**: 1948-1956, 1972-1988. *has images*
+* **DSS2**: 1984-1997. *has images*
+* **HST**: 1990-present
+* **USNO** 1978-1999
+* **POSSI**: 1948-1956
+
+### Search for observations by orbital elements
+
+Parameters:
+
+* **epoch**: Epoch ([M]JD or ISO)
+* **eccentricity**: Eccentricity
+* **per_distance**: Perihelion Distance (AU)
+* **per_date**: Perihelion Date ([M]JD or ISO)
+* **long_asc_node**: Long. Asc. Node (Degrees)
+* **arg_of_per**: Arg. of Perihelion (Degrees)
+* **inclination**: Inclination (Degrees)
+* **h_magnitude**: H magnitude
+
+
+Example: `GET /observations?target=Hale-Bopp&service=NEAT`
+
 Response:
 ```js
 {
