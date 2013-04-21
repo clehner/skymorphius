@@ -6,3 +6,37 @@ body {
 a {
   color: #00B7FF;
 }
+
+.tab:not(:first-child) {
+  display: none;
+}
+
+#observations-search fieldset {
+  width: 30em;
+  padding: .25em 1em 1em;
+  margin: 1em 0;
+  border-radius: 1ex;
+  border: 2px solid #6ac;
+}
+
+#target {
+  width: 16em;
+  margin-right: 1ex;
+}
+
+#advanced-search dl {
+  line-height: 1.8em;
+}
+
+#advanced-search dt {
+  width: 10em;
+  float: left;
+  text-align: right;
+  font-weight: bold;
+  padding-right: 1ex;
+}
+
+#advanced-search [type=submit] {
+  margin-top: 1em;
+}
+

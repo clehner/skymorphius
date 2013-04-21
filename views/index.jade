@@ -2,4 +2,58 @@ extends layout
 
 block content
   h1= title
-  p Welcome to #{title}
+  p Here you can search NASA's SkyMorph databases for some cool images of your favorite celestial bodies!
+  #observations-search
+    form#simple-search.tab
+      fieldset
+        legend
+          | Simple 
+          a(href)#advanced-link Advanced
+        p Try 
+          for target in sample_targets
+            a(href='#target=#{target}')= target
+            |, 
+          | or something
+        input#target(type='text')
+        input(type='submit', value='Get em')
+
+    form#advanced-search.tab
+      fieldset
+        legend
+          a(href)#simple-link Simple
+          |  Advanced
+        dl
+        dt Epoch
+        dd
+          input#epoch
+          [M]JD or ISO
+        dt Eccentricity
+        dd
+          input#eccentricity
+        dt Perihelion Distance
+        dd
+          input#per_distance
+          | AU
+        dt Perihelion Date
+        dd
+          input#per_date
+          | [M]JD or ISO
+        dt Long. Asc. Node
+        dd
+          input#long_asc_node
+          | Degrees
+        dt Arg. of Perihelion
+        dd
+          input#arg_of_per
+          | Degrees
+        dt Inclination
+        dd
+          input#inclination
+          | Degrees
+        dt H magnitude
+        dd
+          input#h_magnitude
+
+        center
+          input(type='submit', value='Reach for the stars')
+
