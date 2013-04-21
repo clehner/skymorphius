@@ -76,16 +76,16 @@ function getObservations(target, params, service, cb) {
     cb({error: 'missing target or orbital elements'});
     return;
   } else {
-      query = {
-        OE_EPOCH: params.epoch,
-        OE_EC: params.eccentricity,
-        OE_QR: params.per_dist,
-        OE_TP: params.per_date,
-        OE_OM: params.long_asc_node,
-        OE_W: params.arg_of_per,
-        OE_IN: params.inclination,
-        OE_H: params.h_magnitude
-      };
+    query = {
+      OE_EPOCH: params.epoch,
+      OE_EC: params.eccentricity,
+      OE_QR: params.per_dist,
+      OE_TP: params.per_date,
+      OE_OM: params.long_asc_node,
+      OE_W: params.arg_of_per,
+      OE_IN: params.inclination,
+      OE_H: params.h_magnitude
+    };
   }
   query[service] = 'on';
 
@@ -165,11 +165,14 @@ function getObservations(target, params, service, cb) {
         var id = docResp.id;
         if (docResp.error == 'conflict') {
           // this is probably ok
-          console.;
+          console.warn('Couch sav conflict', id, docResp.reason);
+        }
+      });
 
-    // get image data in the background
-    var ids = observations.map(function (obs) { return obs._id; });
-    getImageInfo(service, ids);
+      // get image data in the background
+      var ids = observations.map(function (obs) { return obs._id; });
+      getImageInfo(service, ids);
+    });
   });
 }
 
@@ -178,7 +181,9 @@ function getObservations(target, params, service, cb) {
  * by target or orbital elements
  */
 exports.index = function (req, res) {
-  getObservations(req.query.target, req.query, req.query.service, function (result) {
+  var target = req.query.target,
+    service = req.query.service;
+  getObservations(target, req.query, service, function (result) {
     res.jsonp(result);
   });
 };
