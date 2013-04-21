@@ -148,7 +148,6 @@ function getImageInfo(service, imageId, cb) {
     uri: skyMorphImagesURL,
     qs: query
   }, function (err, resp, body) {
-    console.log(resp, body, err);
     body = body.toString('ascii');
     if (err) {
       cb({error: err, urls: []});

@@ -68,7 +68,11 @@ function renderObservation(observation) {
 
 function renderObservations(observations) {
   observationsEl.innerHTML = "";
-  observations.forEach(renderObservation);
+  if (observations.length) {
+    observations.forEach(renderObservation);
+  } else {
+    observationsEl.innerHTML = "No results";
+  }
 }
 
 function showError(error) {

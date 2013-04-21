@@ -53,3 +53,14 @@ a {
   display: inline-block;
 }
 
+#observations {
+  line-height: 0;
+}
+
+#observations li {
+  display: inline-block;
+}
+
+#observations li img {
+  width: 250px;
+}
